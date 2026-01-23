@@ -1,4 +1,4 @@
-// Toggle Mobile Menu
+/* --- NAVIGATION LOGIC --- */
 const menuBtn = document.querySelector('.menu-btn');
 const navLinks = document.querySelector('.nav-links');
 const menuIcon = menuBtn.querySelector('i');
@@ -15,239 +15,225 @@ menuBtn.addEventListener('click', () => {
 	}
 });
 
-// Typing Effect
+// Close menu when clicking a link
+document.querySelectorAll('.nav-links a').forEach(link => {
+	link.addEventListener('click', () => {
+		navLinks.classList.remove('active');
+		menuIcon.classList.remove('fa-times');
+		menuIcon.classList.add('fa-bars');
+	});
+});
+
+/* --- TYPEWRITER EFFECT --- */
 const textElement = document.querySelector('.typing-text');
-const words = ["Mechanical Engineer", "Cyber Security Consultant", "FEA Analyst", "Drone Pilot", "Python Developer", "CAD Designer"];
+const words = ["MECHANICAL ENGINEER", "CYBER SECURITY ANALYST", "CAD DESIGNER", "WHITE HAT HACKER"];
 let wordIndex = 0;
 let charIndex = 0;
 let isDeleting = false;
 
-const typeEffect = () => {
+function typeEffect() {
 	const currentWord = words[wordIndex];
 	const currentChars = currentWord.substring(0, charIndex);
-	
 	textElement.textContent = currentChars;
 
 	if (!isDeleting && charIndex < currentWord.length) {
 		charIndex++;
-		setTimeout(typeEffect, 100);
+		setTimeout(typeEffect, 80);
 	} else if (isDeleting && charIndex > 0) {
 		charIndex--;
-		setTimeout(typeEffect, 50);
+		setTimeout(typeEffect, 40);
 	} else {
 		isDeleting = !isDeleting;
 		if (!isDeleting) {
-			wordIndex = !isDeleting ? (wordIndex + 1) % words.length : wordIndex;
+			wordIndex = (wordIndex + 1) % words.length;
+			setTimeout(typeEffect, 1500); 
+		} else {
+			setTimeout(typeEffect, 500); 
 		}
-		setTimeout(typeEffect, 1200);
 	}
-};
-
+}
 document.addEventListener('DOMContentLoaded', typeEffect);
 
-// Smooth Scroll
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-	anchor.addEventListener('click', function (e) {
-		e.preventDefault();
-		navLinks.classList.remove('active');
-		if (menuIcon) {
-			menuIcon.classList.remove('fa-times');
-			menuIcon.classList.add('fa-bars');
-		}
+/* --- AUTO-SCRAMBLE HEADER --- */
+const target = document.getElementById('scramble-target');
+const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
-		const target = document.querySelector(this.getAttribute('href'));
-		if (target) {
-			const headerOffset = 80;
-			const elementPosition = target.getBoundingClientRect().top;
-			const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+function scrambleText() {
+	let iterations = 0;
+	const originalText = target.dataset.value;
 	
-			window.scrollTo({
-				top: offsetPosition,
-				behavior: "smooth"
-			});
-		}
-	});
-});
+	const interval = setInterval(() => {
+		target.innerText = originalText.split("").map((letter, index) => {
+			if(index < iterations) return originalText[index];
+			return letters[Math.floor(Math.random() * letters.length)];
+		}).join("");
 
-/* --- DYNAMIC IRREGULAR WIREMESH (LOW POLY STYLE) --- */
-const canvas = document.getElementById('background-canvas');
+		if(iterations >= originalText.length) clearInterval(interval);
+		iterations += 1 / 3;
+	}, 30);
+}
+setInterval(scrambleText, 5000);
+
+/* --- RESPONSIVE CANVAS ANIMATION --- */
+const canvas = document.getElementById('bg-canvas');
 const ctx = canvas.getContext('2d');
 
-let width, height;
-// Start mouse off-screen
-let mouse = { x: -500, y: -500 }; 
+let w, h;
+let isMobile = false;
 
-// Mesh Configuration
-const spacing = 60; // Increased spacing slightly for better irregular look
-let rows, cols;
-let points = [];
-let time = 0; 
-
-// Track mouse
-window.addEventListener('mousemove', (e) => {
-	mouse.x = e.clientX;
-	mouse.y = e.clientY;
-});
-
-function resize() {
-	width = canvas.width = window.innerWidth;
-	height = canvas.height = window.innerHeight;
+function resize() { 
+	w = canvas.width = window.innerWidth; 
+	h = canvas.height = window.innerHeight;
+	// Check if mobile (width < 768px)
+	isMobile = w < 768;
 	
-	// Add extra cols/rows to cover edges when points are randomized
-	cols = Math.ceil(width / spacing) + 2;
-	rows = Math.ceil(height / spacing) + 2;
-	
-	initMesh();
+	initMatrix(); // Re-calc columns
+	initGears();  // Re-position gears
+}
+window.addEventListener('resize', resize);
+
+// --- MATRIX RAIN ---
+const matrixChars = "101101001";
+const fontSize = 14;
+let columns;
+let drops = [];
+
+function initMatrix() {
+	// Desktop: cover half width. Mobile: cover full width
+	const areaWidth = isMobile ? w : w / 2;
+	columns = Math.floor(areaWidth / fontSize);
+	drops = Array(columns).fill(1);
 }
 
-// Initialize Grid Points with RANDOM OFFSETS
-function initMesh() {
-	points = [];
-	for (let y = 0; y < rows; y++) {
-		for (let x = 0; x < cols; x++) {
-			
-			// Calculate base grid position
-			let bx = (x - 1) * spacing; // -1 to start off-screen left
-			let by = (y - 1) * spacing; // -1 to start off-screen top
+function drawMatrix() {
+	ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+	// Fade depends on mode
+	ctx.fillRect(0, 0, isMobile ? w : w/2, h); 
+	
+	ctx.fillStyle = isMobile ? "rgba(0, 243, 255, 0.15)" : "#00f3ff"; // Dimmer on mobile
+	ctx.font = fontSize + "px monospace";
 
-			// Add Randomness (The "Irregular" Part)
-			// We shift the point by up to 45% of the spacing in any direction
-			// This keeps the topology connected but distorts the shape
-			let offsetX = (Math.random() - 0.5) * spacing * 0.9;
-			let offsetY = (Math.random() - 0.5) * spacing * 0.9;
-
-			points.push({
-				x: bx + offsetX,
-				y: by + offsetY,
-				originX: bx + offsetX, 
-				originY: by + offsetY,
-				angle: Math.random() * Math.PI * 2 
-			});
-		}
+	for(let i=0; i<drops.length; i++) {
+		const text = matrixChars.charAt(Math.floor(Math.random() * matrixChars.length));
+		ctx.fillText(text, i*fontSize, drops[i]*fontSize);
+		
+		if(drops[i]*fontSize > h && Math.random() > 0.98) drops[i] = 0;
+		drops[i]++;
 	}
 }
 
-function getThermalColor(dist) {
-	const heatRadius = 350;
-	let t = Math.min(dist / heatRadius, 1);
-	
-	// Thermal Scale: Red(0) -> Blue(240)
-	const hue = 240 * t; 
-	const lightness = 60 - (t * 45); 
-	
-	// Alpha: Wireframes need higher opacity
-	const alpha = 1.0 - (t * 0.75); 
+// --- GEARS ---
+class Gear {
+	constructor(x, y, radius, teeth, speed, color) {
+		this.x = x;
+		this.y = y;
+		this.radius = radius;
+		this.teeth = teeth;
+		this.speed = speed;
+		this.color = color;
+		this.angle = 0;
+	}
 
-	return `hsla(${hue}, 100%, ${lightness}%, ${alpha})`;
+	update() {
+		this.angle += this.speed;
+	}
+
+	draw() {
+		ctx.save();
+		ctx.translate(this.x, this.y);
+		ctx.rotate(this.angle);
+		
+		ctx.strokeStyle = this.color;
+		ctx.lineWidth = 2;
+		ctx.fillStyle = "rgba(255, 157, 0, 0.05)"; // Very subtle fill
+
+		// Gear Body
+		ctx.beginPath();
+		const outerRadius = this.radius;
+		const innerRadius = this.radius * 0.85;
+		const holeRadius = this.radius * 0.3;
+
+		for (let i = 0; i < this.teeth; i++) {
+			const a = (Math.PI * 2 * i) / this.teeth;
+			const ta = (Math.PI * 2) / (this.teeth * 2); 
+			
+			const x1 = Math.cos(a) * (outerRadius + 8);
+			const y1 = Math.sin(a) * (outerRadius + 8);
+			const x2 = Math.cos(a + ta) * outerRadius;
+			const y2 = Math.sin(a + ta) * outerRadius;
+
+			if (i === 0) ctx.moveTo(x1, y1);
+			else ctx.lineTo(x1, y1);
+			
+			ctx.lineTo(x2, y2);
+			ctx.arc(0, 0, outerRadius, a + ta, a + (Math.PI * 2) / this.teeth);
+		}
+		ctx.closePath();
+		ctx.stroke();
+		ctx.fill();
+
+		// Inner Rims
+		ctx.beginPath(); ctx.arc(0, 0, innerRadius, 0, Math.PI * 2); ctx.stroke();
+		ctx.beginPath(); ctx.arc(0, 0, holeRadius, 0, Math.PI * 2); 
+		ctx.fillStyle = "#050505"; ctx.fill(); ctx.stroke();
+
+		ctx.restore();
+	}
 }
+
+let gears = [];
+
+function initGears() {
+	gears = [];
+	
+	if (isMobile) {
+		// MOBILE: Place one large gear at bottom right, barely visible
+		gears.push(new Gear(w * 0.9, h * 0.9, 80, 20, 0.005, "rgba(255, 157, 0, 0.2)"));
+		gears.push(new Gear(w * 0.9 - 100, h * 0.9 - 60, 40, 12, -0.01, "rgba(255, 157, 0, 0.2)"));
+	} else {
+		// DESKTOP: Original complex linkage on the right side
+		const centerX = w * 0.75;
+		const centerY = h * 0.5;
+		gears.push(new Gear(centerX, centerY + 100, 80, 24, 0.01, "#ff9d00"));
+		gears.push(new Gear(centerX + 130, centerY - 10, 50, 16, -0.016, "#ff9d00"));
+		gears.push(new Gear(centerX - 100, centerY + 20, 30, 12, -0.026, "#ff9d00"));
+	}
+}
+
+// --- ANIMATION LOOP ---
+// Initial Setup
+resize();
 
 function animate() {
-	ctx.clearRect(0, 0, width, height);
+	// 1. Draw Matrix Rain
+	drawMatrix();
 
-	// Update Time
-	time += 0.015; // Slightly slower for heavier mesh feel
+	// 2. Handle Right Side / Overlay
+	if (!isMobile) {
+		// Clear Right Side for Gears
+		ctx.clearRect(w/2, 0, w/2, h);
+		ctx.fillStyle = "#050505";
+		ctx.fillRect(w/2, 0, w/2, h);
+		
+		// Grid on Right Side
+		ctx.strokeStyle = "rgba(255, 157, 0, 0.05)";
+		ctx.lineWidth = 1;
+		for(let x = w/2; x < w; x+=40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+		for(let y = 0; y < h; y+=40) { ctx.beginPath(); ctx.moveTo(w/2,y); ctx.lineTo(w,y); ctx.stroke(); }
 
-	// 1. Update Point Positions (Organic Wave)
-	points.forEach(p => {
-		// Wave motion
-		const waveX = Math.sin(p.originY * 0.02 + time) * 5; // Reduced amplitude for stability
-		const waveY = Math.cos(p.originX * 0.02 + time) * 5;
-
-		p.x = p.originX + waveX;
-		p.y = p.originY + waveY;
-	});
-
-	// 2. Draw Triangles
-	for (let y = 0; y < rows - 1; y++) {
-		for (let x = 0; x < cols - 1; x++) {
-			
-			const idx = y * cols + x;
-			const p1 = points[idx];
-			const p2 = points[idx + 1];
-			const p3 = points[idx + cols];
-			const p4 = points[idx + cols + 1];
-
-			// We draw two triangles per grid square to form the mesh
-			// Randomizing the split direction for extra irregularity
-			if ((x + y) % 2 === 0) {
-				drawTriangle(p1, p2, p3);
-				drawTriangle(p2, p4, p3);
-			} else {
-				// Alternate diagonal split
-				drawTriangle(p1, p2, p4);
-				drawTriangle(p1, p4, p3);
-			}
-		}
+		// Divider Line
+		ctx.strokeStyle = "#00f3ff";
+		ctx.lineWidth = 2;
+		ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.stroke();
 	}
+
+	// 3. Draw Gears (On top of everything)
+	gears.forEach(gear => {
+		gear.update();
+		gear.draw();
+	});
 
 	requestAnimationFrame(animate);
 }
 
-function drawTriangle(p1, p2, p3) {
-	// Centroid
-	const cx = (p1.x + p2.x + p3.x) / 3;
-	const cy = (p1.y + p2.y + p3.y) / 3;
-
-	// Mouse Distance
-	const dx = cx - mouse.x;
-	const dy = cy - mouse.y;
-	const dist = Math.sqrt(dx * dx + dy * dy);
-
-	// Color
-	const color = getThermalColor(dist);
-
-	// Draw
-	ctx.beginPath();
-	ctx.moveTo(p1.x, p1.y);
-	ctx.lineTo(p2.x, p2.y);
-	ctx.lineTo(p3.x, p3.y);
-	ctx.closePath();
-	
-	// WIREFRAME MODE
-	ctx.strokeStyle = color; 
-	ctx.lineWidth = 0.8; 
-	ctx.stroke();
-}
-
-window.addEventListener('resize', resize);
-
-resize();
-animate();		setTimeout(typeEffect, 50);
-	} else {
-		isDeleting = !isDeleting;
-		if (!isDeleting) {
-			wordIndex = !isDeleting ? (wordIndex + 1) % words.length : wordIndex;
-		}
-		setTimeout(typeEffect, 1200);
-	}
-};
-
-document.addEventListener('DOMContentLoaded', typeEffect);
-
-// Smooth Scroll & Auto-Close Menu
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-	anchor.addEventListener('click', function (e) {
-		e.preventDefault();
-		
-		// Close mobile menu
-		navLinks.classList.remove('active');
-		
-		// Reset icon
-		if (menuIcon) {
-			menuIcon.classList.remove('fa-times');
-			menuIcon.classList.add('fa-bars');
-		}
-
-		const target = document.querySelector(this.getAttribute('href'));
-		if (target) {
-			const headerOffset = 80; // Offset for fixed header
-			const elementPosition = target.getBoundingClientRect().top;
-			const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-	
-			window.scrollTo({
-				top: offsetPosition,
-				behavior: "smooth"
-			});
-		}
-	});
-});
+animate();
